@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CatfishGuard — AI Catfishing Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a26;
+  --border: #2a2a3a;
+  --text: #e8e8f0;
+  --text2: #8888a0;
+  --accent: #6366f1;
+  --accent2: #818cf8;
+  --danger: #ef4444;
+  --danger-bg: rgba(239,68,68,0.08);
+  --warn: #f59e0b;
+  --warn-bg: rgba(245,158,11,0.08);
+  --safe: #10b981;
+  --safe-bg: rgba(16,185,129,0.08);
+  --info: #3b82f6;
+  --info-bg: rgba(59,130,246,0.08);
+  --radius: 12px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* ── Header ── */
+.header {
+  padding: 2rem 1.5rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent2), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header p {
+  color: var(--text2);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+/* ── Container ── */
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* ── Mode Tabs ── */
+.mode-tabs {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+}
+.mode-tab {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 9px;
+  transition: all 0.2s;
+}
+.mode-tab.active {
+  background: var(--accent);
+  color: white;
+}
+.mode-tab:hover:not(.active) {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+/* ── Upload Area ── */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s;
+  background: var(--surface);
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(99,102,241,0.04);
+}
+.upload-zone.has-image {
+  padding: 1rem;
+}
+.upload-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.6;
+}
+.upload-text {
+  color: var(--text2);
+  font-size: 0.9rem;
+}
+.upload-text strong {
+  color: var(--accent2);
+}
+.mode-hint {
+  font-size: 0.78rem;
+  color: var(--text2);
+  margin-top: 0.5rem;
+  opacity: 0.7;
+}
+.upload-zone input[type="file"] {
+  display: none;
+}
+.preview-img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  display: none;
+  margin: 0 auto;
+}
+.preview-img.visible {
+  display: block;
+}
+
+/* ── Analyze Button ── */
+.analyze-btn {
+  width: 100%;
+  padding: 0.85rem;
+  margin-top: 1rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: white;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+.analyze-btn.visible {
+  display: block;
+}
+.analyze-btn:hover {
+  background: var(--accent2);
+  transform: translateY(-1px);
+}
+.analyze-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Loading ── */
+.loading {
+  display: none;
+  text-align: center;
+  padding: 2rem;
+}
+.loading.visible { display: block; }
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 0.75rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading p { color: var(--text2); font-size: 0.9rem; }
+
+/* ── Results ── */
+.results {
+  display: none;
+  margin-top: 1.5rem;
+}
+.results.visible { display: block; }
+
+/* Score Ring */
+.score-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.score-ring {
+  width: 120px; height: 120px;
+  margin: 0 auto 1rem;
+  position: relative;
+}
+.score-ring svg {
+  width: 100%; height: 100%;
+  transform: rotate(-90deg);
+}
+.score-ring .bg { stroke: var(--surface2); }
+.score-ring .fill { transition: stroke-dashoffset 1s ease; stroke-linecap: round; }
+.score-value {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+.risk-badge {
+  display: inline-block;
+  padding: 0.3rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.risk-message {
+  color: var(--text2);
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+  line-height: 1.5;
+}
+
+/* Metadata card (profile mode) */
+.meta-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  display: none;
+}
+.meta-card.visible { display: block; }
+.meta-card h3 {
+  font-size: 0.85rem;
+  color: var(--text2);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.meta-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+.meta-stat {
+  text-align: center;
+  padding: 0.5rem;
+  background: var(--surface2);
+  border-radius: 8px;
+}
+.meta-stat .num {
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text);
+}
+.meta-stat .label {
+  font-size: 0.72rem;
+  color: var(--text2);
+  margin-top: 0.15rem;
+}
+.meta-score-bar {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.meta-score-item {
+  flex: 1;
+  text-align: center;
+  padding: 0.5rem;
+  background: var(--surface2);
+  border-radius: 8px;
+}
+.meta-score-item .num {
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+.meta-score-item .label {
+  font-size: 0.7rem;
+  color: var(--text2);
+}
+
+/* Layers */
+.layers-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.layers-card h3 {
+  font-size: 0.85rem;
+  color: var(--text2);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.layer-row:last-child { border-bottom: none; }
+.layer-name {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.layer-bar {
+  width: 120px;
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.layer-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+.layer-val {
+  width: 36px;
+  text-align: right;
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text2);
+}
+
+/* Warnings */
+.warnings-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.warnings-card h3 {
+  font-size: 0.85rem;
+  color: var(--text2);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.warning-item {
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+.warning-item:last-child { margin-bottom: 0; }
+.warning-item.high { background: var(--danger-bg); border-left: 3px solid var(--danger); }
+.warning-item.medium { background: var(--warn-bg); border-left: 3px solid var(--warn); }
+.warning-item.low { background: var(--safe-bg); border-left: 3px solid var(--safe); }
+.warning-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.warning-detail {
+  font-size: 0.78rem;
+  color: var(--text2);
+  line-height: 1.45;
+}
+
+/* Tips */
+.tips-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.tips-card h3 {
+  font-size: 0.85rem;
+  color: var(--text2);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.tip-item {
+  font-size: 0.82rem;
+  color: var(--text2);
+  padding: 0.35rem 0 0.35rem 1.25rem;
+  position: relative;
+}
+.tip-item::before {
+  content: '›';
+  position: absolute;
+  left: 0;
+  color: var(--accent2);
+  font-weight: 700;
+}
+
+/* Reset */
+.reset-btn {
+  width: 100%;
+  padding: 0.7rem;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.reset-btn:hover {
+  border-color: var(--text2);
+  color: var(--text);
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text2);
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🛡️ CatfishGuard</h1>
+  <p>AI-Powered Catfishing Detection</p>
+</div>
+
+<div class="container">
+  <!-- Mode Tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" data-mode="image" onclick="setMode('image')">
+      🖼️ Image Analysis
+    </button>
+    <button class="mode-tab" data-mode="profile" onclick="setMode('profile')">
+      📱 Profile Screenshot
+    </button>
+  </div>
+
+  <!-- Upload Zone -->
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+    <div id="uploadContent">
+      <div class="upload-icon">📤</div>
+      <div class="upload-text"><strong>Click to upload</strong> or drag & drop</div>
+      <div class="mode-hint" id="modeHint">Upload a photo to analyze for AI generation</div>
+    </div>
+    <img class="preview-img" id="previewImg">
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">
+    Analyze Image
+  </button>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Analyzing image layers...</p>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <!-- Score -->
+    <div class="score-card">
+      <div class="score-ring">
+        <svg viewBox="0 0 120 120">
+          <circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="8"/>
+          <circle class="fill" id="scoreCircle" cx="60" cy="60" r="52" fill="none"
+            stroke-width="8" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+        </svg>
+        <div class="score-value" id="scoreValue">0</div>
+      </div>
+      <div class="risk-badge" id="riskBadge">—</div>
+      <div class="risk-message" id="riskMessage"></div>
+    </div>
+
+    <!-- Profile Metadata (hidden in image mode) -->
+    <div class="meta-card" id="metaCard">
+      <h3>Profile Data Extracted</h3>
+      <div class="meta-stats">
+        <div class="meta-stat"><div class="num" id="metaPosts">—</div><div class="label">Posts</div></div>
+        <div class="meta-stat"><div class="num" id="metaFollowers">—</div><div class="label">Followers</div></div>
+        <div class="meta-stat"><div class="num" id="metaFollowing">—</div><div class="label">Following</div></div>
+      </div>
+      <div class="meta-score-bar">
+        <div class="meta-score-item"><div class="num" id="metaScoreVal">—</div><div class="label">Profile Score</div></div>
+        <div class="meta-score-item"><div class="num" id="imgScoreVal">—</div><div class="label">Image Score</div></div>
+      </div>
+    </div>
+
+    <!-- Layers -->
+    <div class="layers-card" id="layersCard">
+      <h3>Detection Layers</h3>
+      <div id="layersList"></div>
+    </div>
+
+    <!-- Warnings -->
+    <div class="warnings-card">
+      <h3>Findings</h3>
+      <div id="warningsList"></div>
+    </div>
+
+    <!-- Tips -->
+    <div class="tips-card">
+      <h3>Safety Tips</h3>
+      <div id="tipsList"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">Analyze Another Image</button>
+  </div>
+</div>
+
+<div class="footer">
+  CatfishGuard v5 — GWC Challenge 2025–26
+</div>
+
+<script>
+let currentMode = 'image';
+let selectedFile = null;
+
+const layerLabels = {
+  saturation_uniformity: 'Color Uniformity',
+  noise_uniformity: 'Noise Uniformity',
+  texture_ratio: 'Texture Ratio',
+  noise_correlation: 'Noise Correlation',
+  frequency_decay: 'Frequency Decay',
+  relative_texture: 'Relative Texture',
+  noise_authenticity: 'Noise Authenticity',
+  frequency_signature: 'Frequency Signature',
+  multiscale_texture: 'Multi-Scale Texture',
+  background_simplicity: 'Background Simplicity',
+};
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  const hint = document.getElementById('modeHint');
+  if (mode === 'image') {
+    hint.textContent = 'Upload a photo to analyze for AI generation';
+  } else {
+    hint.textContent = 'Upload an Instagram profile screenshot';
+  }
+}
+
+// File handling
+const zone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('previewImg');
+const content = document.getElementById('uploadContent');
+
+['dragenter','dragover'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add('dragover'); }));
+['dragleave','drop'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.remove('dragover'); }));
+
+zone.addEventListener('drop', e => {
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleFile(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    preview.src = e.target.result;
+    preview.classList.add('visible');
+    content.style.display = 'none';
+    zone.classList.add('has-image');
+    document.getElementById('analyzeBtn').classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+}
+
+function analyze() {
+  if (!selectedFile) return;
+
+  const btn = document.getElementById('analyzeBtn');
+  const loading = document.getElementById('loading');
+  const results = document.getElementById('results');
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing...';
+  loading.classList.add('visible');
+  results.classList.remove('visible');
+
+  const formData = new FormData();
+  formData.append('image', selectedFile);
+
+  const endpoint = currentMode === 'profile' ? '/analyze-profile' : '/analyze';
+
+  fetch(endpoint, { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      loading.classList.remove('visible');
+      if (data.error) {
+        alert('Error: ' + data.error);
+        btn.disabled = false;
+        btn.textContent = 'Analyze';
+        return;
+      }
+      showResults(data);
+    })
+    .catch(err => {
+      loading.classList.remove('visible');
+      alert('Error: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'Analyze';
+    });
+}
+
+function showResults(data) {
+  const results = document.getElementById('results');
+  results.classList.add('visible');
+  document.getElementById('analyzeBtn').style.display = 'none';
+
+  // Score ring
+  const score = data.overall_score;
+  const circle = document.getElementById('scoreCircle');
+  const circumference = 326.7;
+  const offset = circumference - (score / 100) * circumference;
+
+  const color = data.risk.color;
+  circle.style.stroke = color;
+  circle.style.strokeDashoffset = offset;
+  document.getElementById('scoreValue').textContent = Math.round(score);
+  document.getElementById('scoreValue').style.color = color;
+
+  const badge = document.getElementById('riskBadge');
+  badge.textContent = data.risk.level + ' RISK';
+  badge.style.background = color + '18';
+  badge.style.color = color;
+  document.getElementById('riskMessage').textContent = data.risk.message;
+
+  // Profile metadata (profile mode only)
+  const metaCard = document.getElementById('metaCard');
+  if (data.mode === 'profile' && data.metadata) {
+    metaCard.classList.add('visible');
+    const s = data.metadata.stats;
+    document.getElementById('metaPosts').textContent = s.posts !== null ? s.posts.toLocaleString() : '—';
+    document.getElementById('metaFollowers').textContent = s.followers !== null ? s.followers.toLocaleString() : '—';
+    document.getElementById('metaFollowing').textContent = s.following !== null ? s.following.toLocaleString() : '—';
+    document.getElementById('metaScoreVal').textContent = data.meta_score;
+    document.getElementById('imgScoreVal').textContent = data.image_score;
+  } else {
+    metaCard.classList.remove('visible');
+  }
+
+  // Layers
+  const layers = data.mode === 'profile' ? data.image_layers : data.analysis;
+  const layersList = document.getElementById('layersList');
+  layersList.innerHTML = '';
+  if (layers) {
+    for (const [key, val] of Object.entries(layers)) {
+      const pct = Math.round(val * 100);
+      const barColor = val > 0.6 ? 'var(--danger)' : val > 0.45 ? 'var(--warn)' : 'var(--safe)';
+      layersList.innerHTML += `
+        <div class="layer-row">
+          <div class="layer-name">${layerLabels[key] || key}</div>
+          <div class="layer-bar"><div class="layer-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+          <div class="layer-val">${pct}%</div>
+        </div>`;
+    }
+  }
+
+  // Warnings
+  const warnList = document.getElementById('warningsList');
+  warnList.innerHTML = '';
+  (data.warnings || []).forEach(w => {
+    warnList.innerHTML += `
+      <div class="warning-item ${w.type}">
+        <div class="warning-title">${w.icon} ${w.title}</div>
+        <div class="warning-detail">${w.detail}</div>
+      </div>`;
+  });
+
+  // Tips
+  const tipsList = document.getElementById('tipsList');
+  tipsList.innerHTML = '';
+  (data.tips || []).forEach(t => {
+    tipsList.innerHTML += `<div class="tip-item">${t}</div>`;
+  });
+}
+
+function resetAll() {
+  selectedFile = null;
+  preview.src = '';
+  preview.classList.remove('visible');
+  content.style.display = '';
+  zone.classList.remove('has-image');
+  fileInput.value = '';
+
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('metaCard').classList.remove('visible');
+  const btn = document.getElementById('analyzeBtn');
+  btn.classList.remove('visible');
+  btn.style.display = '';
+  btn.disabled = false;
+  btn.textContent = 'Analyze';
+
+  document.getElementById('scoreCircle').style.strokeDashoffset = 326.7;
+}
+</script>
+</body>
+</html>
